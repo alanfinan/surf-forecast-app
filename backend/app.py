@@ -3,6 +3,10 @@ import requests
 
 app = FastAPI()
 
+@app.get("/")
+def home():
+    return {"message": "Surf Forecast API Running"}
+
 @app.get("/forecast")
 def forecast():
 
@@ -11,7 +15,7 @@ def forecast():
     params = {
         "latitude": 54.5618,
         "longitude": -8.2089,
-        "hourly": "wave_height,wave_period,wave_direction"
+        "hourly": "wave_height,wave_direction,wave_period"
     }
 
     response = requests.get(url, params=params)
