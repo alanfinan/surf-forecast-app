@@ -1,5 +1,9 @@
-from fastapi import FastAPI
-import requests
+from fastapi import FastAPI, HTTPException
+
+from data.surf_spots import spots
+from services.ranking import rank_spots
+from services.ranking import rank_spot_over_time
+from services.marine_api import (get_forecast, build_hourly_forecasts)
 
 app = FastAPI()
 
@@ -10,14 +14,54 @@ def home():
 @app.get("/forecast")
 def forecast():
 
-    url = "https://marine-api.open-meteo.com/v1/marine"
+    try:
+        forecast_data = get_forecast(
+            latitude=54.5618,
+            longitude=-8.2089
+        )
 
-    params = {
-        "latitude": 54.5618,
-        "longitude": -8.2089,
-        "hourly": "wave_height,wave_direction,wave_period"
-    }
+        return forecast_data
 
-    response = requests.get(url, params=params)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    return response.json()
+@app.get("/rankings")
+def rankings():
+
+    try:
+
+        results = []
+
+        for spot in spots:
+
+            raw_forecast = get_forecast(
+                latitude=spot["latitude"],
+                longitude=spot["longitude"]
+            )
+
+            hourly_forecasts = build_hourly_forecasts(
+                raw_forecast,
+                hours=12
+            )
+
+            ranked = rank_spot_over_time(
+                hourly_forecasts,
+                spot
+            )
+
+            results.append(ranked)
+
+        results.sort(
+            key=lambda x: x["best_score"],
+            reverse=True
+        )
+
+        return {
+            "rankings": results
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
